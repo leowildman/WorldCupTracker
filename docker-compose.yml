@@ -1,13 +1,13 @@
-# GUI-friendly stack (Portainer / OMV Docker Compose plugin).
-# Deploy once — container polls every 15 minutes and restarts if the NAS reboots.
+# Pull the pre-built image (like rommapp/romm:latest).
+# Published on push to main: ghcr.io/leowildman/worldcup-tracker:latest
 #
-# Before deploy: add .env with PUSHOVER_USER_KEY and PUSHOVER_API_TOKEN
-# (or set those variables in the stack UI).
+# GUI: Portainer / OMV → paste this file → add .env or stack env vars → Deploy
+# Local dev with your own code: docker compose up -d --build
 
 services:
   worldcup-tracker:
-    build: .
-    image: worldcup-tracker:latest
+    image: ghcr.io/leowildman/worldcup-tracker:latest
+    pull_policy: always
     container_name: worldcup-tracker
     restart: unless-stopped
     env_file:

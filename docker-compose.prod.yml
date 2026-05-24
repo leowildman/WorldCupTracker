@@ -1,6 +1,6 @@
 # Production / OMV layout: run via cron, not a long-lived container.
 #
-#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml pull
 #   docker compose -f docker-compose.prod.yml run --rm tracker check
 #
 # Cron example (every 15 minutes):
@@ -8,8 +8,8 @@
 
 services:
   tracker:
-    build: .
-    image: worldcup-tracker:latest
+    image: ghcr.io/leowildman/worldcup-tracker:latest
+    pull_policy: always
     env_file:
       - .env
     environment:

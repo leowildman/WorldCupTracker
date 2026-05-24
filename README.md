@@ -156,7 +156,13 @@ Or schedule `check` via Task Scheduler, cron, or `docker compose --profile watch
 
 ### Docker GUI (Portainer / OMV — no terminal)
 
-Deploy **`docker-compose.yml`** as a stack; it runs `watch` every 15 minutes with a 128 MB cap. Step-by-step: **[docs/DEPLOY_GUI.md](docs/DEPLOY_GUI.md)**.
+Pull the published image (like `rommapp/romm:latest`):
+
+```yaml
+image: ghcr.io/leowildman/worldcup-tracker:latest
+```
+
+Built automatically on push to `main`. Step-by-step: **[docs/DEPLOY_GUI.md](docs/DEPLOY_GUI.md)**.
 
 ### OpenMediaVault (cron, lowest RAM)
 
