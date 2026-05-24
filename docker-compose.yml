@@ -5,6 +5,8 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./data:/app/data
+    env_file:
+      - .env
     environment:
       WCT_CONFIG: /app/config.yaml
       WCT_DATA_DIR: /app/data
@@ -17,6 +19,8 @@ services:
     volumes:
       - ./config.yaml:/app/config.yaml:ro
       - ./data:/app/data
+    env_file:
+      - .env
     environment:
       WCT_CONFIG: /app/config.yaml
       WCT_DATA_DIR: /app/data

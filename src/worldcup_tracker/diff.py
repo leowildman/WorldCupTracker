@@ -29,7 +29,23 @@ def compare_fixtures(
             )
             continue
 
-        if old.booking_status != fixture.booking_status:
+        if (
+            old.teams != fixture.teams
+            or old.date_label != fixture.date_label
+            or old.time_label != fixture.time_label
+        ):
+            changes.append(
+                FixtureChange(
+                    kind="details_changed",
+                    fixture=fixture,
+                    previous=old,
+                    message=(
+                        f"Fixture details changed for {fixture.teams}: "
+                        f"{old.display_datetime} -> {fixture.display_datetime}"
+                    ),
+                )
+            )
+        elif old.booking_status != fixture.booking_status:
             changes.append(
                 FixtureChange(
                     kind="booking_changed",

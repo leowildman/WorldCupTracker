@@ -70,6 +70,8 @@ Get a phone push when **anything** changes: a new fixture on a venue page, booki
 2. Copy `.env.example` to `.env` and set:
    - `PUSHOVER_USER_KEY` — your user key from the Pushover dashboard
    - `PUSHOVER_API_TOKEN` — your application’s API token
+
+   The CLI loads `.env` from the current working directory on each run (existing shell variables take precedence). Docker Compose loads the same file via `env_file: .env`. Override the path with `WCT_ENV_FILE=/path/to/.env` if needed.
 3. In `config.yaml`, enable notifications:
 
    ```yaml
@@ -81,15 +83,64 @@ Get a phone push when **anything** changes: a new fixture on a venue page, booki
 
 4. Run `check` or `watch`. Notifications fire only when `compare_fixtures` finds changes (not on every poll).
 
+Each notification includes:
+
+- **Tap-to-open link** (Pushover `url` button) when only one venue changed — opens that venue’s World Cup page.
+- **Venue page URL** in the message body for every venue with changes.
+- **Booking URL** on the line below a change when the parser found one.
+
 Example message:
 
 ```text
 World Cup Tracker: 2 changes
 
 Big Penny Social:
-• New fixture: Brazil vs Argentina (Sun 28 Jun 3pm)
-• New fixture: World Cup Final (Sun 19 Jul 8pm)
+• [new] New fixture: World Cup Final (Sun 19 Jul 8pm)
+Venue page: https://bigpennysocial.co.uk/whats-on/world-cup
+
+Bar Kick at The Shoreditch Arms:
+• [booking] Booking changed for Mexico vs South Africa: walk_ins_only -> bookable
+  https://booking.example.com/mexico-sa
+Venue page: https://www.urbanpubsandbars.com/world-cup-2026/bar-kick-at-the-shoreditch-arms
 ```
+
+### Unexpected or noisy changes
+
+| Situation | What happens |
+|-----------|----------------|
+| **New match or final added** | `[new]` change; you get a Pushover with the venue link. |
+| **Booking opens** (walk-ins → bookable, or new booking URL) | `[booking]` or `[booking url]` change. |
+| **Match removed from the page** | `[removed]` — may mean cancelled screening or a site edit. |
+| **Time/teams edited but same fixture id** | `[details]` — same slug/key, different text on the page. |
+| **Site redesign / parse failure** (fixture count collapses) | Check is **skipped**: snapshot is **not** updated, **no** notification, warning printed. Avoids false “everything removed” alerts. |
+| **Venue renames a match** (slug changes) | Often looks like one `[removed]` and one `[new]` — treat as worth checking manually. |
+| **Network / HTTP error** | Counts as a failed check; snapshot unchanged. After **5** consecutive failures (configurable), a **high-priority** Pushover alert is sent (red / loud on most phones). |
+| **Site recovers** | Normal check succeeds again → optional **recovery** Pushover when the page was previously in alert state. |
+
+### Repeated failures (health alerts)
+
+If a venue fails **5 checks in a row** (parse guard or HTTP error), you get a separate high-priority notification:
+
+```text
+⚠️ Tracker: venue page broken
+
+Bar Kick at The Shoreditch Arms — 5 failed checks in a row.
+
+Last error: fixture count dropped sharply (29 -> 2)…
+```
+
+Configure in `config.yaml`:
+
+```yaml
+notifications:
+  health_alert_after: 5   # failures before alert
+  health_priority: 1      # Pushover high priority (highlighted / bypasses quiet hours)
+  health_repeat_every: 0  # 0 = one alert per incident; 5 = remind every 5 failures
+```
+
+Failure counts are stored in `data/<venue>/health.json` and reset when a check succeeds.
+
+Re-run `check` after a skipped warning. If the page looks correct but keeps skipping, the parser may need updating (`docs/ADDING_VENUES.md`).
 
 ### World Cup final (and any new match)
 

@@ -8,9 +8,15 @@ from typing import Annotated
 import typer
 
 from worldcup_tracker.config import load_config
+from worldcup_tracker.env import load_env_file
 from worldcup_tracker.diff import compare_fixtures
 from worldcup_tracker.models import BookingStatus, FixtureChange
-from worldcup_tracker.pushover import notify_changes
+from worldcup_tracker.health import HealthAlert
+from worldcup_tracker.pushover import (
+    notify_changes,
+    notify_health_alerts,
+    notify_health_recovery,
+)
 from worldcup_tracker.service import check_all, check_venue, fetch_venue_fixtures
 from worldcup_tracker.storage import load_snapshot
 
@@ -25,6 +31,7 @@ def _load(
     config: Path | None,
     data_dir: Path | None,
 ):
+    load_env_file()
     return load_config(config_path=config, data_dir=data_dir)
 
 
@@ -39,11 +46,16 @@ def _status_label(status: BookingStatus) -> str:
 def _notify_pushover(
     cfg,
     changes_by_venue: dict[str, list[FixtureChange]],
+    health_alerts: list[HealthAlert],
+    recoveries: list[tuple[str, str]],
 ) -> None:
-    if not changes_by_venue:
-        return
     try:
-        if notify_changes(cfg, changes_by_venue):
+        if health_alerts and notify_health_alerts(cfg, health_alerts):
+            typer.echo("Pushover health alert sent (high priority).")
+        for venue_name, venue_url in recoveries:
+            if notify_health_recovery(cfg, venue_name, venue_url):
+                typer.echo(f"Pushover recovery notice sent for {venue_name}.")
+        if changes_by_venue and notify_changes(cfg, changes_by_venue):
             typer.echo("Pushover notification sent.")
     except RuntimeError as exc:
         typer.echo(str(exc), err=True)
@@ -85,23 +97,34 @@ def check(
 
     any_changes = False
     changes_by_venue: dict[str, list[FixtureChange]] = {}
+    health_alerts: list[HealthAlert] = []
+    recoveries: list[tuple[str, str]] = []
     targets = [v for v in cfg.venues if venue is None or v.name == venue]
     if venue and not targets:
         typer.echo(f"Venue not found in config: {venue}", err=True)
         raise typer.Exit(1)
 
     for v in targets:
-        fixtures, changes = check_venue(v, cfg)
-        if changes:
+        result = check_venue(v, cfg)
+        if result.health_alert:
+            health_alerts.append(result.health_alert)
+        if result.health_recovered:
+            recoveries.append((v.name, v.url))
+        if result.skip_reason:
+            typer.echo(f"Warning for {v.name}: {result.skip_reason}", err=True)
+            continue
+        if result.changes:
             any_changes = True
-            changes_by_venue[v.name] = changes
+            changes_by_venue[v.name] = result.changes
             typer.echo(f"\nChanges for {v.name}:")
-            for change in changes:
+            for change in result.changes:
                 typer.echo(f"  [{change.kind}] {change.message}")
         else:
-            typer.echo(f"No changes for {v.name} ({len(fixtures)} fixtures tracked).")
+            typer.echo(
+                f"No changes for {v.name} ({len(result.fixtures)} fixtures tracked)."
+            )
 
-    _notify_pushover(cfg, changes_by_venue)
+    _notify_pushover(cfg, changes_by_venue, health_alerts, recoveries)
     raise typer.Exit(0 if not any_changes else 2)
 
 
@@ -168,14 +191,27 @@ def watch(
         while True:
             results = check_all(cfg)
             changes_by_venue = {
-                name: changes
-                for name, (_, changes) in results.items()
-                if changes
+                name: result.changes
+                for name, result in results.items()
+                if result.changes
             }
+            health_alerts = [
+                result.health_alert
+                for result in results.values()
+                if result.health_alert
+            ]
+            recoveries = [
+                (name, next(v.url for v in cfg.venues if v.name == name))
+                for name, result in results.items()
+                if result.health_recovered
+            ]
+            for name, result in results.items():
+                if result.skip_reason:
+                    typer.echo(f"Warning for {name}: {result.skip_reason}", err=True)
             for name, changes in changes_by_venue.items():
                 for change in changes:
                     typer.echo(f"[{name}] {change.message}")
-            _notify_pushover(cfg, changes_by_venue)
+            _notify_pushover(cfg, changes_by_venue, health_alerts, recoveries)
             time.sleep(interval)
     except KeyboardInterrupt:
         typer.echo("\nStopped.")

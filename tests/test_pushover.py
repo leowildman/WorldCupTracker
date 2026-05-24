@@ -15,14 +15,21 @@ from worldcup_tracker.pushover import (
 )
 
 
-def _change(kind: str, message: str) -> FixtureChange:
+def _change(
+    kind: str,
+    message: str,
+    *,
+    booking_url: str | None = None,
+    source_url: str | None = None,
+) -> FixtureChange:
     fixture = Fixture(
         teams="Brazil vs Argentina",
         date_label="Sun 28 Jun",
         time_label="3pm",
         booking_status=BookingStatus.BOOKABLE,
-        booking_url=None,
+        booking_url=booking_url,
         fixture_slug="big-penny/test",
+        source_url=source_url,
     )
     return FixtureChange(kind=kind, fixture=fixture, message=message)
 
@@ -33,10 +40,30 @@ def test_format_notification_message() -> None:
             _change("new", "New fixture: Brazil vs Argentina (Sun 28 Jun 3pm)"),
         ],
     }
-    title, message = format_notification(changes)
-    assert title == "World Cup Tracker: 1 change"
-    assert "Big Penny Social:" in message
-    assert "Brazil vs Argentina" in message
+    venue_urls = {
+        "Big Penny Social": "https://bigpennysocial.co.uk/whats-on/world-cup",
+    }
+    notification = format_notification(changes, venue_urls)
+    assert notification.title == "World Cup Tracker: 1 change"
+    assert "Big Penny Social:" in notification.message
+    assert "Brazil vs Argentina" in notification.message
+    assert notification.url == venue_urls["Big Penny Social"]
+    assert notification.url_title == "Open Big Penny Social"
+    assert "Venue page:" in notification.message
+
+
+def test_format_notification_includes_booking_url() -> None:
+    changes = {
+        "Bar Kick": [
+            _change(
+                "booking_changed",
+                "Booking changed for Brazil vs Argentina",
+                booking_url="https://booking.example.com/match",
+            ),
+        ],
+    }
+    notification = format_notification(changes, {"Bar Kick": "https://example.com/venue"})
+    assert "https://booking.example.com/match" in notification.message
 
 
 def test_notify_skips_when_disabled() -> None:
@@ -50,6 +77,7 @@ def test_notify_skips_when_disabled() -> None:
     assert notify_changes(config, {"Venue": [_change("new", "New fixture: x")]}) is False
 
 
+@patch.dict("os.environ", {}, clear=True)
 def test_notify_warns_without_credentials(caplog: pytest.LogCaptureFixture) -> None:
     config = AppConfig(
         venues=[],
@@ -64,6 +92,7 @@ def test_notify_warns_without_credentials(caplog: pytest.LogCaptureFixture) -> N
     assert "PUSHOVER_USER_KEY" in caplog.text
 
 
+@patch.dict("os.environ", {}, clear=True)
 def test_notify_strict_raises_without_credentials() -> None:
     config = AppConfig(
         venues=[],
@@ -105,6 +134,7 @@ def test_notify_sends_with_mocked_client() -> None:
     assert payload["token"] == "token456"
     assert payload["priority"] == 1
     assert "Brazil vs Argentina" in payload["message"]
+    assert "url" not in payload or payload.get("url") is None
 
 
 def test_resolve_credentials_prefers_env() -> None:

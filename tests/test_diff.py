@@ -51,6 +51,25 @@ def test_booking_status_change_detected() -> None:
     assert "walk_ins_only -> bookable" in changes[0].message
 
 
+def test_details_changed_detected() -> None:
+    slug = "/fixture/mexico-sa"
+    previous = [_fixture("Mexico vs South Africa", slug=slug)]
+    current = [
+        Fixture(
+            teams="Mexico vs South Africa",
+            date_label="Fri 12 Jun",
+            time_label="9:00 pm",
+            booking_status=BookingStatus.WALK_INS_ONLY,
+            booking_url=None,
+            fixture_slug=slug,
+        )
+    ]
+
+    changes = compare_fixtures(previous, current)
+    assert len(changes) == 1
+    assert changes[0].kind == "details_changed"
+
+
 def test_removed_fixture_detected() -> None:
     previous = [
         _fixture("Mexico vs South Africa"),

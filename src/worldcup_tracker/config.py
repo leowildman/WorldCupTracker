@@ -24,6 +24,9 @@ class NotificationSettings:
     strict: bool = False
     user_key: str | None = None
     api_token: str | None = None
+    health_alert_after: int = 5
+    health_priority: int = 1
+    health_repeat_every: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +100,9 @@ def load_config(
         strict=bool(notif_raw.get("strict", False)),
         user_key=notif_raw.get("user_key"),
         api_token=notif_raw.get("api_token"),
+        health_alert_after=int(notif_raw.get("health_alert_after", 5)),
+        health_priority=int(notif_raw.get("health_priority", 1)),
+        health_repeat_every=int(notif_raw.get("health_repeat_every", 0)),
     )
 
     venues: list[VenueConfig] = []

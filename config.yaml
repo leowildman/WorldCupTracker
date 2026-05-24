@@ -9,9 +9,12 @@ venues:
 
 # Pushover notifications (credentials via env: PUSHOVER_USER_KEY, PUSHOVER_API_TOKEN)
 notifications:
-  enabled: false
+  enabled: true
   priority: 0
   strict: false
+  health_alert_after: 5
+  health_priority: 1
+  health_repeat_every: 0
 
 # Default fetch settings
 fetch:
