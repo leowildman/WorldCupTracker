@@ -1,0 +1,10 @@
+# Monitored venue pages
+venues:
+  - name: "Bar Kick at The Shoreditch Arms"
+    url: "https://www.urbanpubsandbars.com/world-cup-2026/bar-kick-at-the-shoreditch-arms"
+    parser: urban_pubs
+
+# Default fetch settings
+fetch:
+  user_agent: "WorldCupTracker/0.1 (fixture monitor; +https://github.com/yourname/WorldCupTracker)"
+  timeout_seconds: 30

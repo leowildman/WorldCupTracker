@@ -1,0 +1,23 @@
+services:
+  tracker:
+    build: .
+    image: worldcup-tracker:latest
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+    environment:
+      WCT_CONFIG: /app/config.yaml
+      WCT_DATA_DIR: /app/data
+    command: ["check"]
+
+  tracker-watch:
+    build: .
+    image: worldcup-tracker:latest
+    profiles: ["watch"]
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+    environment:
+      WCT_CONFIG: /app/config.yaml
+      WCT_DATA_DIR: /app/data
+    command: ["watch", "--interval", "900"]
