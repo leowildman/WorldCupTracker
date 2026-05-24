@@ -1,0 +1,28 @@
+# Production / OMV layout: run via cron, not a long-lived container.
+#
+#   docker compose -f docker-compose.prod.yml build
+#   docker compose -f docker-compose.prod.yml run --rm tracker check
+#
+# Cron example (every 15 minutes):
+#   */15 * * * * cd /path/to/WorldCupTracker && docker compose -f docker-compose.prod.yml run --rm tracker check >> /var/log/worldcup-tracker.log 2>&1
+
+services:
+  tracker:
+    build: .
+    image: worldcup-tracker:latest
+    env_file:
+      - .env
+    environment:
+      WCT_CONFIG: /app/config.yaml
+      WCT_DATA_DIR: /app/data
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+    command: ["check"]
+    restart: "no"
+    # Plain docker compose resource limits (not Swarm-only deploy block)
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.25
+    pids_limit: 64
+    init: true

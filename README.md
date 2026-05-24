@@ -154,18 +154,25 @@ uv run worldcup-tracker watch --interval 600
 
 Or schedule `check` via Task Scheduler, cron, or `docker compose --profile watch up tracker-watch`.
 
-## Docker
+### Docker GUI (Portainer / OMV — no terminal)
+
+Deploy **`docker-compose.yml`** as a stack; it runs `watch` every 15 minutes with a 128 MB cap. Step-by-step: **[docs/DEPLOY_GUI.md](docs/DEPLOY_GUI.md)**.
+
+### OpenMediaVault (cron, lowest RAM)
+
+Optional: cron + `docker-compose.prod.yml` instead of an always-on container — **[docs/DEPLOY_OMV.md](docs/DEPLOY_OMV.md)**.
+
+## Docker (CLI)
 
 ```powershell
-docker compose build
-docker compose run --rm tracker check
-docker compose run --rm tracker list
+docker compose up -d --build
+docker compose logs -f
 ```
 
-Scheduled polling (15 minutes):
+One-off check without a running container:
 
 ```powershell
-docker compose --profile watch up tracker-watch
+docker compose run --rm worldcup-tracker check
 ```
 
 Snapshots are stored in `./data` on the host (mounted volume).

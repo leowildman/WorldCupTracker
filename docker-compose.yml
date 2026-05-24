@@ -1,27 +1,26 @@
-services:
-  tracker:
-    build: .
-    image: worldcup-tracker:latest
-    volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./data:/app/data
-    env_file:
-      - .env
-    environment:
-      WCT_CONFIG: /app/config.yaml
-      WCT_DATA_DIR: /app/data
-    command: ["check"]
+# GUI-friendly stack (Portainer / OMV Docker Compose plugin).
+# Deploy once — container polls every 15 minutes and restarts if the NAS reboots.
+#
+# Before deploy: add .env with PUSHOVER_USER_KEY and PUSHOVER_API_TOKEN
+# (or set those variables in the stack UI).
 
-  tracker-watch:
+services:
+  worldcup-tracker:
     build: .
     image: worldcup-tracker:latest
-    profiles: ["watch"]
-    volumes:
-      - ./config.yaml:/app/config.yaml:ro
-      - ./data:/app/data
+    container_name: worldcup-tracker
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       WCT_CONFIG: /app/config.yaml
       WCT_DATA_DIR: /app/data
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
     command: ["watch", "--interval", "900"]
+    mem_limit: 128m
+    memswap_limit: 128m
+    cpus: 0.25
+    pids_limit: 64
+    init: true
