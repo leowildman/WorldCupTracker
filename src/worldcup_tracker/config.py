@@ -18,6 +18,15 @@ class FetchSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class NotificationSettings:
+    enabled: bool = False
+    priority: int = 0
+    strict: bool = False
+    user_key: str | None = None
+    api_token: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class VenueConfig:
     name: str
     url: str
@@ -28,6 +37,7 @@ class VenueConfig:
 class AppConfig:
     venues: list[VenueConfig]
     fetch: FetchSettings
+    notifications: NotificationSettings
     data_dir: Path
     config_path: Path
 
@@ -80,6 +90,15 @@ def load_config(
     )
     fetch = FetchSettings(user_agent=user_agent, timeout_seconds=timeout)
 
+    notif_raw = raw.get("notifications", {})
+    notifications = NotificationSettings(
+        enabled=bool(notif_raw.get("enabled", False)),
+        priority=int(notif_raw.get("priority", 0)),
+        strict=bool(notif_raw.get("strict", False)),
+        user_key=notif_raw.get("user_key"),
+        api_token=notif_raw.get("api_token"),
+    )
+
     venues: list[VenueConfig] = []
     for entry in raw.get("venues", []):
         venues.append(
@@ -93,6 +112,7 @@ def load_config(
     return AppConfig(
         venues=venues,
         fetch=fetch,
+        notifications=notifications,
         data_dir=resolve_data_dir(data_dir),
         config_path=path,
     )

@@ -9,7 +9,8 @@ import typer
 
 from worldcup_tracker.config import load_config
 from worldcup_tracker.diff import compare_fixtures
-from worldcup_tracker.models import BookingStatus
+from worldcup_tracker.models import BookingStatus, FixtureChange
+from worldcup_tracker.pushover import notify_changes
 from worldcup_tracker.service import check_all, check_venue, fetch_venue_fixtures
 from worldcup_tracker.storage import load_snapshot
 
@@ -33,6 +34,20 @@ def _status_label(status: BookingStatus) -> str:
     if status == BookingStatus.WALK_INS_ONLY:
         return "Walk-ins only"
     return status.value
+
+
+def _notify_pushover(
+    cfg,
+    changes_by_venue: dict[str, list[FixtureChange]],
+) -> None:
+    if not changes_by_venue:
+        return
+    try:
+        if notify_changes(cfg, changes_by_venue):
+            typer.echo("Pushover notification sent.")
+    except RuntimeError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(1) from exc
 
 
 def _print_fixtures(fixtures, venue_name: str) -> None:
@@ -69,6 +84,7 @@ def check(
         raise typer.Exit(1)
 
     any_changes = False
+    changes_by_venue: dict[str, list[FixtureChange]] = {}
     targets = [v for v in cfg.venues if venue is None or v.name == venue]
     if venue and not targets:
         typer.echo(f"Venue not found in config: {venue}", err=True)
@@ -78,12 +94,14 @@ def check(
         fixtures, changes = check_venue(v, cfg)
         if changes:
             any_changes = True
+            changes_by_venue[v.name] = changes
             typer.echo(f"\nChanges for {v.name}:")
             for change in changes:
                 typer.echo(f"  [{change.kind}] {change.message}")
         else:
             typer.echo(f"No changes for {v.name} ({len(fixtures)} fixtures tracked).")
 
+    _notify_pushover(cfg, changes_by_venue)
     raise typer.Exit(0 if not any_changes else 2)
 
 
@@ -149,9 +167,15 @@ def watch(
     try:
         while True:
             results = check_all(cfg)
-            for name, (_, changes) in results.items():
+            changes_by_venue = {
+                name: changes
+                for name, (_, changes) in results.items()
+                if changes
+            }
+            for name, changes in changes_by_venue.items():
                 for change in changes:
                     typer.echo(f"[{name}] {change.message}")
+            _notify_pushover(cfg, changes_by_venue)
             time.sleep(interval)
     except KeyboardInterrupt:
         typer.echo("\nStopped.")

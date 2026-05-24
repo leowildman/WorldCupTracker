@@ -36,3 +36,7 @@ Diffing keys fixtures by `fixture_slug` when present, otherwise `teams|date|time
 ## Booking status
 
 Use `BookingStatus.BOOKABLE` when users can reserve (real booking URL, no walk-ins-only notice). Use `WALK_INS_ONLY` when the page states walk-ins only or the book button is a placeholder (`#`).
+
+## Plain-text fixture lists (`big_penny`)
+
+Some venues list matches as plain text in a single paragraph, separated by `<br>` tags (see `parsers/big_penny.py`). Find the `FIXTURES` heading, split lines on `<br>`, and parse each line with a regex for `Day DD Mon - time - Teams`. Generate a stable `fixture_slug` prefix (e.g. `big-penny/...`) when the CMS does not provide per-match URLs. Use `BOOKABLE` when the page directs users to book a table without per-match walk-in notices.

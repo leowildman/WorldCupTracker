@@ -51,6 +51,19 @@ def test_booking_status_change_detected() -> None:
     assert "walk_ins_only -> bookable" in changes[0].message
 
 
+def test_removed_fixture_detected() -> None:
+    previous = [
+        _fixture("Mexico vs South Africa"),
+        _fixture("Brazil vs Argentina", slug="/fixture/brazil-argentina"),
+    ]
+    current = [_fixture("Mexico vs South Africa")]
+
+    changes = compare_fixtures(previous, current)
+    assert len(changes) == 1
+    assert changes[0].kind == "removed"
+    assert changes[0].fixture.teams == "Brazil vs Argentina"
+
+
 def test_integration_diff_from_modified_html(sample_html: str) -> None:
     parser = UrbanPubsParser()
     previous = parser.parse(sample_html)

@@ -2,16 +2,17 @@
 
 Monitor pub and venue pages for **FIFA World Cup 2026** fixtures and detect when new matches appear or **booking availability changes** (for example, “Walk ins only” becoming “Book Now” with a real link).
 
-The first supported source is [Urban Pubs & Bars](https://www.urbanpubsandbars.com/) venue pages, starting with [Bar Kick at The Shoreditch Arms](https://www.urbanpubsandbars.com/world-cup-2026/bar-kick-at-the-shoreditch-arms).
+Supported sources include [Urban Pubs & Bars](https://www.urbanpubsandbars.com/) (e.g. [Bar Kick at The Shoreditch Arms](https://www.urbanpubsandbars.com/world-cup-2026/bar-kick-at-the-shoreditch-arms)) and [Big Penny Social](https://bigpennysocial.co.uk/whats-on/world-cup).
 
 ## How detection works
 
 1. **Fetch** each configured venue URL (respectful `User-Agent`, timeout).
 2. **Parse** HTML into normalized `Fixture` records (teams, date/time, booking status, links).
 3. **Compare** the current list to the last saved snapshot in `data/`.
-4. **Report** new fixtures and booking-status changes; then save the new snapshot (previous snapshot archived under `data/<venue>/history/`).
+4. **Report** new fixtures, booking-status changes, and removed fixtures; then save the new snapshot (previous snapshot archived under `data/<venue>/history/`).
+5. **Notify** (optional) via [Pushover](https://pushover.net/) when anything changes.
 
-Booking status is derived from on-page cues: a “walk ins only” notice → `walk_ins_only`; a real booking URL without that notice → `bookable`.
+Booking status is derived from on-page cues: a “walk ins only” notice → `walk_ins_only`; a real booking URL without that notice → `bookable`. Venues like Big Penny Social use a plain fixture list with table booking — those default to `bookable`.
 
 ## Requirements
 
@@ -60,6 +61,47 @@ Options:
 - `-v, --venue` — filter by venue name from config
 
 Environment variables: `WCT_CONFIG`, `WCT_DATA_DIR`, `WCT_USER_AGENT`, `WCT_HTTP_TIMEOUT`.
+
+## Pushover alerts
+
+Get a phone push when **anything** changes: a new fixture on a venue page, booking status or URL updates, or a fixture removed from the list.
+
+1. Create a [Pushover](https://pushover.net/) account and application API token.
+2. Copy `.env.example` to `.env` and set:
+   - `PUSHOVER_USER_KEY` — your user key from the Pushover dashboard
+   - `PUSHOVER_API_TOKEN` — your application’s API token
+3. In `config.yaml`, enable notifications:
+
+   ```yaml
+   notifications:
+     enabled: true
+     priority: 0   # optional; use 1 for high priority
+     strict: false # if true, missing creds fail check/watch instead of warning
+   ```
+
+4. Run `check` or `watch`. Notifications fire only when `compare_fixtures` finds changes (not on every poll).
+
+Example message:
+
+```text
+World Cup Tracker: 2 changes
+
+Big Penny Social:
+• New fixture: Brazil vs Argentina (Sun 28 Jun 3pm)
+• New fixture: World Cup Final (Sun 19 Jul 8pm)
+```
+
+### World Cup final (and any new match)
+
+Venues often add the **World Cup final** to their page only when it is confirmed or ticketed. The tracker compares each run to the last saved snapshot in `data/`. The moment a venue adds the final (or any match) — or changes booking text — you get a Pushover alert.
+
+The final may not be listed yet; that is normal. Use continuous monitoring:
+
+```powershell
+uv run worldcup-tracker watch --interval 600
+```
+
+Or schedule `check` via Task Scheduler, cron, or `docker compose --profile watch up tracker-watch`.
 
 ## Docker
 

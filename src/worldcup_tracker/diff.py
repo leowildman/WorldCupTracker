@@ -56,4 +56,16 @@ def compare_fixtures(
                 )
             )
 
+    curr_by_key = {f.key: f for f in current}
+    for old in previous:
+        if old.key not in curr_by_key:
+            changes.append(
+                FixtureChange(
+                    kind="removed",
+                    fixture=old,
+                    previous=old,
+                    message=f"Removed fixture: {old.teams} ({old.display_datetime})",
+                )
+            )
+
     return changes
